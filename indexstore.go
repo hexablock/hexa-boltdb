@@ -61,7 +61,7 @@ func (store *IndexStore) Stats() *Stats {
 
 // Name returns the name of the index store
 func (store *IndexStore) Name() string {
-	return "boltdb"
+	return dbname
 }
 
 // NewKey creates a new KeylogIndex and adds it to the store.  It returns an error if it

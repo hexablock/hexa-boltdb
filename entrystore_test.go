@@ -2,6 +2,7 @@ package hexaboltdb
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"io/ioutil"
 	"os"
 	"testing"
@@ -9,7 +10,13 @@ import (
 
 	"github.com/hexablock/hexalog"
 	"github.com/hexablock/hexatype"
+	"github.com/hexablock/log"
 )
+
+func TestMain(m *testing.M) {
+	log.SetLevel("DEBUG")
+	os.Exit(m.Run())
+}
 
 func Test_EntryStore(t *testing.T) {
 
@@ -33,7 +40,7 @@ func Test_EntryStore(t *testing.T) {
 		Timestamp: uint64(time.Now().UnixNano()),
 	}
 
-	id := ent.Hash((&hexatype.SHA256Hasher{}).New())
+	id := ent.Hash(sha256.New())
 	if err := rdb.Set(id, ent); err != nil {
 		t.Fatal(err)
 	}
@@ -51,7 +58,7 @@ func Test_EntryStore(t *testing.T) {
 		t.Fatal("key mismatch")
 	}
 
-	id1 := ent1.Hash((&hexatype.SHA256Hasher{}).New())
+	id1 := ent1.Hash(sha256.New())
 	if bytes.Compare(id, id1) != 0 {
 		t.Fatal("id mismatch")
 	}

@@ -26,6 +26,8 @@ type openIndexes struct {
 	flushInt time.Duration
 	// Time to wait after lastChanged before issuing a flush
 	flushWait time.Duration
+
+	shutdown chan struct{}
 }
 
 func newOpenIndexes() *openIndexes {
@@ -33,6 +35,7 @@ func newOpenIndexes() *openIndexes {
 		m:         make(map[string]*indexHandle),
 		flushInt:  60 * time.Second,
 		flushWait: 15 * time.Second,
+		shutdown:  make(chan struct{}, 1),
 	}
 	go oi.flush()
 	return oi
@@ -40,8 +43,12 @@ func newOpenIndexes() *openIndexes {
 
 func (oi *openIndexes) flush() {
 	for {
-		time.Sleep(oi.flushInt)
-		oi.flushOnce()
+		select {
+		case <-time.After(oi.flushInt):
+			oi.flushOnce()
+		case <-oi.shutdown:
+			return
+		}
 	}
 }
 
@@ -66,6 +73,7 @@ func (oi *openIndexes) flushOnce() {
 		}
 	}
 	oi.mu.Unlock()
+	log.Println("flushed")
 }
 
 func (oi *openIndexes) closeAll() error {
@@ -87,12 +95,14 @@ func (oi *openIndexes) close(key []byte) error {
 	oi.mu.Lock()
 	defer oi.mu.Unlock()
 
-	if val, ok := oi.m[k]; ok {
-		val.cnt--
-		val.lastUsed = time.Now()
-		return nil
+	val, ok := oi.m[k]
+	if !ok {
+		return hexatype.ErrKeyNotFound
 	}
-	return hexatype.ErrKeyNotFound
+
+	val.cnt--
+	val.lastUsed = time.Now()
+	return nil
 }
 
 // get an open index and up the ref count

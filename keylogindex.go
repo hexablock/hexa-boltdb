@@ -42,18 +42,18 @@ func (idx *KeylogIndex) SetMarker(marker []byte) (bool, error) {
 }
 
 // Append appends the id to the index checking the previous hash.
-func (idx *KeylogIndex) Append(id, prev []byte) error {
+func (idx *KeylogIndex) Append(id, prev []byte, ltime uint64) error {
 	idx.mu.Lock()
 	defer idx.mu.Unlock()
 
-	return idx.idx.Append(id, prev)
+	return idx.idx.Append(id, prev, ltime)
 }
 
 // Rollback safely removes the last entry id
-func (idx *KeylogIndex) Rollback() (int, bool) {
+func (idx *KeylogIndex) Rollback(ltime uint64) (int, bool) {
 	idx.mu.Lock()
 	defer idx.mu.Unlock()
-	return idx.idx.Rollback()
+	return idx.idx.Rollback(ltime)
 }
 
 // Last safely returns the last entry id

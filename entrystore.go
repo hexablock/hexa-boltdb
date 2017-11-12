@@ -29,7 +29,7 @@ func NewEntryStore() *EntryStore {
 
 // Name returns the name of the rocksdb entry store
 func (store *EntryStore) Name() string {
-	return "boltdb"
+	return dbname
 }
 
 // Open opens the rocks store for writing
