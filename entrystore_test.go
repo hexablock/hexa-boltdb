@@ -15,6 +15,7 @@ import (
 
 func TestMain(m *testing.M) {
 	log.SetLevel("DEBUG")
+	log.SetFlags(log.Lshortfile | log.LstdFlags | log.Lmicroseconds)
 	os.Exit(m.Run())
 }
 

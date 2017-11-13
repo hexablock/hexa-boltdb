@@ -130,8 +130,8 @@ func Test_IndexStore_Remove(t *testing.T) {
 		t.Fatalf("should fail with='%v' got='%v'", errIndexOpen, err)
 	}
 
-	ti := ki.(*KeylogIndex)
-	if err = ti.Close(); err != nil {
+	//ti := ki.(*KeylogIndex)
+	if err = ki.Close(); err != nil {
 		t.Fatal(err)
 	}
 
@@ -154,7 +154,9 @@ func Test_IndexStore_MarkKey(t *testing.T) {
 	}
 	defer idxs.Close()
 
-	k1, err := idxs.MarkKey([]byte("key"), []byte("marker"))
+	testkey := []byte("mark-key")
+
+	k1, err := idxs.MarkKey(testkey, []byte("marker"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -163,12 +165,12 @@ func Test_IndexStore_MarkKey(t *testing.T) {
 		t.Fatal("wrong marker value")
 	}
 
-	k2, err := idxs.GetKey([]byte("key"))
+	k2, err := idxs.GetKey(testkey)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if idxs.openIdxs.m["key"].cnt != 2 {
+	if idxs.openIdxs.m[string(testkey)].cnt != 2 {
 		t.Fatal("should have 2 open handles")
 	}
 
@@ -185,17 +187,20 @@ func Test_IndexStore_MarkKey(t *testing.T) {
 	}
 
 	// Set marker on open handle
-	k3, err := idxs.MarkKey([]byte("key"), []byte("marker2"))
+	k3, err := idxs.MarkKey(testkey, []byte("marker2"))
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	k1.(*KeylogIndex).Close()
-	k2.(*KeylogIndex).Close()
-	k3.(*KeylogIndex).Close()
+	// k1.(*KeylogIndex).Close()
+	// k2.(*KeylogIndex).Close()
+	// k3.(*KeylogIndex).Close()
+	k1.Close()
+	k2.Close()
+	k3.Close()
 
-	if _, ok := idxs.openIdxs.m["key"]; ok {
-		t.Fatal("should have have key handle")
+	if idxs.openIdxs.m[string(testkey)].cnt != 0 {
+		t.Fatal("count should be 0")
 	}
 }
 
@@ -206,7 +211,7 @@ func Test_IndexStore_Iter(t *testing.T) {
 	if err := idxs.Open(tmpdir); err != nil {
 		t.Fatal(err)
 	}
-	defer idxs.Close()
+	//defer idxs.Close()
 
 	for i := 0; i < 20; i++ {
 		idx, err := idxs.NewKey([]byte(fmt.Sprintf("key%d", i)))
@@ -236,7 +241,12 @@ func Test_IndexStore_Iter(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if idxs.Count() != 10 {
+		t.Fatalf("count mismatch want=10 have=%d", idxs.Count())
+	}
+
+	idxs.openIdxs.closeAll()
 	if idxs.Count() != 20 {
-		t.Fatal(err)
+		t.Fatalf("count mismatch want=20 have=%d", idxs.Count())
 	}
 }

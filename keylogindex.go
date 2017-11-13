@@ -6,7 +6,6 @@ import (
 	"github.com/boltdb/bolt"
 	"github.com/golang/protobuf/proto"
 	"github.com/hexablock/hexalog"
-	"github.com/hexablock/log"
 )
 
 // KeylogIndex implements a hexalog.KeylogIndex interface backed by rocks
@@ -114,14 +113,15 @@ func (idx *KeylogIndex) Flush() error {
 
 	}
 
-	if err == nil {
-		log.Printf("[DEBUG] Flushed index key=%s", idx.Key())
-	}
+	// if err == nil {
+	// 	log.Printf("[DEBUG] Flushed index key=%s", idx.Key())
+	// }
 
 	return err
 }
 
-// Close closes the index by calling close on the open handle manager
+// Close closes the index by calling close on the open handle manager.  It is
+// does not flush the data rather it is flushed at an interval for performance
 func (idx *KeylogIndex) Close() error {
 	return idx.kh.close(idx.Key())
 }

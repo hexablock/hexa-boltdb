@@ -1,6 +1,7 @@
 package hexaboltdb
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 
@@ -19,11 +20,14 @@ type Stats struct {
 
 // IndexStore implements an rocksdb KeylogIndex store interface
 type IndexStore struct {
-	db     *bolt.DB
-	opt    *bolt.Options
+	db  *bolt.DB
+	opt *bolt.Options
+	// Boltdb bucket for indexes
 	bucket []byte
-	mode   os.FileMode
-	// open indexes
+	// DB file mode
+	mode os.FileMode
+
+	// Open indexes
 	openIdxs *openIndexes
 }
 
@@ -67,7 +71,7 @@ func (store *IndexStore) Name() string {
 // NewKey creates a new KeylogIndex and adds it to the store.  It returns an error if it
 // already exists
 func (store *IndexStore) NewKey(key []byte) (hexalog.KeylogIndex, error) {
-	if store.openIdxs.isOpen(key) {
+	if _, ok := store.openIdxs.isOpen(key); ok {
 		return nil, hexatype.ErrKeyExists
 	}
 
@@ -141,19 +145,26 @@ func (store *IndexStore) GetKey(key []byte) (hexalog.KeylogIndex, error) {
 // RemoveKey removes the given key's index from the store.  It does NOT remove the associated
 // entry hash id's
 func (store *IndexStore) RemoveKey(key []byte) error {
-	if store.openIdxs.isOpen(key) {
-		return errIndexOpen
+
+	err := store.openIdxs.remove(key)
+	if err != nil {
+		if err != hexatype.ErrKeyNotFound {
+			return err
+		}
 	}
 
-	err := store.db.Update(func(tx *bolt.Tx) error {
+	return store.db.Update(func(tx *bolt.Tx) error {
 		bkt := tx.Bucket(store.bucket)
-		if d := bkt.Get(key); d == nil {
+		val := bkt.Get(key)
+		if val == nil {
+			if err == nil {
+				return nil
+			}
 			return hexatype.ErrKeyNotFound
 		}
 		return bkt.Delete(key)
 	})
 
-	return err
 }
 
 // Iter iterates over each key and index
@@ -173,7 +184,6 @@ func (store *IndexStore) Iter(cb func([]byte, hexalog.KeylogIndex) error) error 
 					log.Println("[ERROR]", err)
 					return nil
 				}
-				//store.openIdxs.register(idx)
 
 			} else {
 				idx = ih.KeylogIndex
@@ -203,9 +213,14 @@ func (store *IndexStore) Count() int64 {
 // Close closes the index store by flushing all open indexes to rocka then
 // closing rocks
 func (store *IndexStore) Close() error {
-	err := store.openIdxs.closeAll()
-	store.db.Close()
-	return err
+	e1 := store.openIdxs.closeAll()
+	e2 := store.db.Close()
+	if e1 == nil {
+		return e2
+	} else if e2 == nil {
+		return e1
+	}
+	return fmt.Errorf("%s; %s", e1.Error(), e2.Error())
 }
 
 func (store *IndexStore) openIndex(key []byte) (*KeylogIndex, error) {
